@@ -31,6 +31,9 @@
 #define ROTATE_180 2
 #define ROTATE_270 3
 
+#define FILE_BUF_SIZE 256
+typedef void (TTF_DRAWPIXEL)(int16_t _x, int16_t _y, uint16_t _colorCode);
+
 typedef struct {
   char name[5];
   uint32_t checkSum;
@@ -150,11 +153,13 @@ class truetypeClass {
     truetypeClass();
 
     uint8_t setTtfFile(File _file, uint8_t _checkCheckSum = 0);
+    uint8_t setTtfPointer(uint8_t *pTTF, uint32_t u32Size, uint8_t _checkCheckSum = 0, bool bFlash = true);
+    void setTtfDrawPixel(TTF_DRAWPIXEL *p);
     void setFramebuffer(uint16_t _framebufferWidth, uint16_t _framebufferHeight, uint16_t _framebuffer_bit, uint8_t _framebufferDirection, uint8_t *_framebuffer);
     void setCharacterSpacing(int16_t _characterSpace, uint8_t _kerning = 1);
     void setCharacterSize(uint16_t _characterSize);
     void setTextBoundary(uint16_t _start_x, uint16_t _end_x, uint16_t _end_y);
-    void setTextColor(uint8_t _onLine, uint8_t _inside);
+    void setTextColor(uint16_t _onLine, uint16_t _inside);
 #define setTextColour setTextColor //to satisfy a pedantic old Australian
     void setTextRotation(uint16_t _rotation);
 
@@ -165,12 +170,21 @@ class truetypeClass {
     void textDraw(int16_t _x, int16_t _y, const wchar_t _character[]);
     void textDraw(int16_t _x, int16_t _y, const char _character[]);
     void textDraw(int16_t _x, int16_t _y, const String _string);
-
+    // custom file I/O wrapper methods
+    int ttfRead(uint8_t *d, int iLen);
+    void ttfSeek(uint32_t u32Offset);
+    uint32_t ttfPosition(void);
     void end();
 
   private:
     File file;
-
+    uint8_t *pTTF = NULL; // pointer to TTF data (not from file)
+    bool bFlash = true; // does the TTF data come from FLASH?
+    uint32_t u32TTFSize, u32TTFOffset = 0; // current read offset into TTF data
+    int iBufferedBytes; // number of bytes remaining in u8FileBuf
+    uint8_t u8FileBuf[FILE_BUF_SIZE]; // buffered reads from file system
+    TTF_DRAWPIXEL *pfnDrawPixel = NULL;
+    
     uint16_t charCode;
     int16_t xMin, xMax, yMin, yMax;
 
@@ -263,12 +277,11 @@ class truetypeClass {
     uint16_t framebufferBit = 8;
     uint8_t framebufferDirection = 0;
     uint8_t stringRotation = 0x00;
-    uint8_t colorLine = 0x00;
-    uint8_t colorInside = 0x00;
+    uint16_t colorLine = 0x00;
+    uint16_t colorInside = 0x00;
     uint8_t *userFrameBuffer;
-    void addPixel(int16_t _x, int16_t _y, uint8_t _colorCode);
     void stringToWchar(String _string, wchar_t _charctor[]);
-
+    void addPixel(int16_t _x, int16_t _y, uint16_t _colorCode);
     uint8_t GetU8ByteCount(char _ch);
     bool IsU8LaterByte(char _ch);
 };
