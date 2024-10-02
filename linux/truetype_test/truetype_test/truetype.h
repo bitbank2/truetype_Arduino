@@ -13,7 +13,17 @@ lots of bugfixes and improvements by Nic.
 
 #define TRUETYPE_H
 
-#if !defined _SPI_H_INCLUDED
+#ifndef ARDUINO
+#define memcpy_P memcpy
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <math.h>
+typedef uint8_t byte;
+#endif
+
+#if !defined _SPI_H_INCLUDED && defined(ARDUINO)
 #include "SPI.h"
 #endif /*_SPI_H_INCLUDED*/
 
@@ -158,7 +168,9 @@ class truetypeClass {
    public:
     truetypeClass();
 
+#ifdef ESP32
     uint8_t setTtfFile(File _file, uint8_t _checkCheckSum = 0);
+#endif
     uint8_t setTtfPointer(uint8_t *pTTF, uint32_t u32Size, uint8_t _checkCheckSum = 0, bool bFlash = true);
     void setTtfDrawPixel(TTF_DRAWPIXEL *p);
     void setFramebuffer(uint16_t _framebufferWidth, uint16_t _framebufferHeight, uint16_t _framebuffer_bit, uint8_t *_framebuffer);
@@ -170,11 +182,13 @@ class truetypeClass {
 
     uint16_t getStringWidth(const wchar_t _character[]);
     uint16_t getStringWidth(const char _character[]);
+#ifdef ARDUINO
     uint16_t getStringWidth(const String _string);
-
+    void textDraw(int16_t _x, int16_t _y, const String _string);
+#endif
+    
     void textDraw(int16_t _x, int16_t _y, const wchar_t _character[]);
     void textDraw(int16_t _x, int16_t _y, const char _character[]);
-    void textDraw(int16_t _x, int16_t _y, const String _string);
 
     int ttfRead(uint8_t *d, int iLen);
     void ttfSeek(uint32_t u32Offset);
@@ -182,7 +196,9 @@ class truetypeClass {
     void end();
 
    private:
+#ifdef ESP32
     File file;
+#endif
     uint8_t *pTTF = NULL;                   // pointer to TTF data (not from file)
     bool bFlash = true;                     // does the TTF data come from FLASH?
     uint32_t u32TTFSize, u32TTFOffset = 0;  // current read offset into TTF data
@@ -286,7 +302,9 @@ class truetypeClass {
     uint16_t colorLine = 0x00;
     uint16_t colorInside = 0x00;
     uint8_t *userFrameBuffer;
+#ifdef ARDUINO
     void stringToWchar(String _string, wchar_t _charctor[]);
+#endif
     void addPixel(int16_t _x, int16_t _y, uint16_t _colorCode);
     uint8_t GetU8ByteCount(char _ch);
     bool IsU8LaterByte(char _ch);
