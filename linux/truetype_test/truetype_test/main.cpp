@@ -149,7 +149,9 @@ int main(int argc, const char * argv[]) {
     
 
     truetype.setTextColor(0xff, 0xff);
-    truetype.textDraw(0, 400, "12:34");
+    for (int i=0; i<10000; i++) {
+        truetype.textDraw(0, 400, "12:34");
+    }
     
     WriteBMP("/Users/laurencebank/Downloads/ttf.bmp", pBitmap, NULL, BITMAP_WIDTH, BITMAP_HEIGHT, 1);
     return 0;

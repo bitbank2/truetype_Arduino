@@ -6,12 +6,15 @@
 truetypeClass::truetypeClass() {}
 
 void truetypeClass::end() {
+#ifdef ESP32
     file.close();
+#endif
     freePointsAll();
     freeGlyph();
     if (table != nullptr) free(table);
 }
 
+#ifdef ESP32
 uint8_t truetypeClass::setTtfFile(File _file, uint8_t _checkCheckSum) {
     if (_file == 0) {
         return 0;
@@ -40,6 +43,7 @@ uint8_t truetypeClass::setTtfFile(File _file, uint8_t _checkCheckSum) {
     readHhea();
     return 1;
 }
+#endif // ESP32
 
 void truetypeClass::setTtfDrawPixel(TTF_DRAWPIXEL *p) {
     pfnDrawPixel = p;
@@ -51,17 +55,23 @@ uint8_t truetypeClass::setTtfPointer(uint8_t *p, uint32_t u32Size, uint8_t _chec
     bFlash = bF;
 
     if (readTableDirectory(_checkCheckSum) == 0) {
+#ifdef ESP32
         file.close();
+#endif
         return 0;
     }
 
     if (readCmap() == 0) {
+#ifdef ESP32
         file.close();
+#endif
         return 0;
     }
 
     if (readHMetric() == 0) {
+#ifdef ESP32
         file.close();
+#endif
         return 0;
     }
 
@@ -77,7 +87,7 @@ int truetypeClass::ttfRead(uint8_t *d, int iLen) {
     if (!pTTF) {
         //return file.read(d, iLen);
         int totalBytesRead = 0;
-
+#ifdef ESP32
         while (iLen > 0) {
             if (iBufferedBytes == 0) {
                 iBufferedBytes = file.read(u8FileBuf, FILE_BUF_SIZE);
@@ -95,6 +105,7 @@ int truetypeClass::ttfRead(uint8_t *d, int iLen) {
             u32BufPosition += bytesToCopy;
             totalBytesRead += bytesToCopy;
         }
+#endif // ESP32
         return totalBytesRead;
     } else {
 
@@ -124,7 +135,9 @@ void truetypeClass::ttfSeek(uint32_t u32Offset) {
             iBufferedBytes = file.position() - u32Offset;
         } else {
         */
+#ifdef ESP32
             file.seek(u32Offset);
+#endif
             iBufferedBytes = 0;
         // }
     } else {
@@ -137,7 +150,11 @@ void truetypeClass::ttfSeek(uint32_t u32Offset) {
 
 uint32_t truetypeClass::ttfPosition(void) {
     if (!pTTF) {
+#ifdef ESP32
         return file.position() - iBufferedBytes;
+#else
+        return 0;
+#endif
     } else {
         return u32TTFOffset;
     }
@@ -169,7 +186,7 @@ void truetypeClass::setFramebuffer(uint16_t _framebufferWidth, uint16_t _framebu
 }
 
 void truetypeClass::setCharacterSize(uint16_t _characterSize) {
-    characterSize = _characterSize;
+    characterSize = _characterSize * 2; // this needs to be doubled to match the freetype point size
 }
 
 void truetypeClass::setCharacterSpacing(int16_t _characterSpace, uint8_t _kerning) {
@@ -785,7 +802,7 @@ void truetypeClass::generateOutline(int16_t _x, int16_t _y, uint16_t characterSi
     return;
 }
 
-void truetypeClass::addLine(float _x0, float _y0, float _x1, float _y1) {
+void truetypeClass::addLine(int16_t _x0, int16_t _y0, int16_t _x1, int16_t _y1) {
 
     if (numPoints == 0) {
         addPoint(_x0, _y0);
@@ -819,12 +836,12 @@ void truetypeClass::addLine(float _x0, float _y0, float _x1, float _y1) {
 }
 
 void truetypeClass::fillGlyph(int16_t _x_min, int16_t _y_min, uint16_t characterSize) {
-    for (int16_t y = round((float)(ascender - glyph.yMax) * (float)characterSize / (float)headTable.unitsPerEm + _y_min);
-         y < round((float)(ascender - glyph.yMin) * (float)characterSize / (float)headTable.unitsPerEm + _y_min);
-         y++) {
+    int16_t ys = round((float)(ascender - glyph.yMax) * (float)characterSize / (float)headTable.unitsPerEm + _y_min);
+    int16_t ye = round((float)(ascender - glyph.yMin) * (float)characterSize / (float)headTable.unitsPerEm + _y_min);
+    for (int16_t y = ys; y < ye; y++) {
         ttCoordinate_t point1, point2;
         ttCoordinate_t point;
-        point.y = (float)y;
+        point.y = y;
 
         uint16_t intersectPointsNum = 0;
         uint16_t bpCounter = 0;
@@ -843,8 +860,8 @@ void truetypeClass::fillGlyph(int16_t _x_min, int16_t _y_min, uint16_t character
             }
             point2 = points[p2Num];
 
-            if (point1.y <= (float)y) {
-                if (point2.y > (float)y) {
+            if (point1.y <= y) {
+                if (point2.y > y) {
                     // Have a valid up intersect
                     intersectPointsNum++;
                     pointsToFill = (ttWindIntersect_t *)realloc(pointsToFill, sizeof(ttWindIntersect_t) * intersectPointsNum);
@@ -854,7 +871,7 @@ void truetypeClass::fillGlyph(int16_t _x_min, int16_t _y_min, uint16_t character
                 }
             } else {
                 // start y > point.y (no test needed)
-                if (point2.y <= (float)y) {
+                if (point2.y <= y) {
                     // Have a valid down intersect
                     intersectPointsNum++;
                     pointsToFill = (ttWindIntersect_t *)realloc(pointsToFill, sizeof(ttWindIntersect_t) * intersectPointsNum);
@@ -864,12 +881,11 @@ void truetypeClass::fillGlyph(int16_t _x_min, int16_t _y_min, uint16_t character
                 }
             }
         }
-
-        for (int16_t x = _x_min + round((float)glyph.xMin * (float)characterSize / (float)headTable.unitsPerEm);
-             x < _x_min + round((float)glyph.xMax * (float)characterSize / (float)headTable.unitsPerEm);
-             x++) {
+        int16_t xs = _x_min + round((float)glyph.xMin * (float)characterSize / (float)headTable.unitsPerEm);
+        int16_t xe = _x_min + round((float)glyph.xMax * (float)characterSize / (float)headTable.unitsPerEm);
+        for (int16_t x = xs; x < xe; x++) {
             int16_t windingNumber = 0;
-            point.x = (float)x;
+            point.x = x;
 
             for (uint16_t i = 0; i < intersectPointsNum; i++) {
                 point1 = points[pointsToFill[i].p1];
@@ -896,7 +912,7 @@ void truetypeClass::fillGlyph(int16_t _x_min, int16_t _y_min, uint16_t character
     }
 }
 
-float truetypeClass::isLeft(ttCoordinate_t *_p0, ttCoordinate_t *_p1, ttCoordinate_t *_point) {
+int32_t truetypeClass::isLeft(ttCoordinate_t *_p0, ttCoordinate_t *_p1, ttCoordinate_t *_point) {
     return ((_p1->x - _p0->x) * (_point->y - _p0->y) - (_point->x - _p0->x) * (_p1->y - _p0->y));
 }
 
@@ -974,6 +990,7 @@ void truetypeClass::textDraw(int16_t _x, int16_t _y, const char _character[]) {
     wcharacter = nullptr;
 }
 
+#ifdef ARDUINO
 void truetypeClass::textDraw(int16_t _x, int16_t _y, const String _string) {
     uint16_t length = _string.length();
     wchar_t *wcharacter = (wchar_t *)calloc(sizeof(wchar_t), length + 1);
@@ -982,6 +999,7 @@ void truetypeClass::textDraw(int16_t _x, int16_t _y, const String _string) {
     free(wcharacter);
     wcharacter = nullptr;
 }
+#endif
 
 void truetypeClass::addPixel(int16_t _x, int16_t _y, uint16_t _colorCode) {
     uint8_t *buf_ptr;
@@ -1036,10 +1054,10 @@ void truetypeClass::addPixel(int16_t _x, int16_t _y, uint16_t _colorCode) {
             buf_ptr = &userFrameBuffer[((uint16_t)_x / 2) + (uint16_t)_y * displayWidthFrame];
             _colorCode = _colorCode & 0b00001111;
 
-            if ((uint16_t)_x % 2) {
-                *buf_ptr = (*buf_ptr & 0b00001111) + (_colorCode << 4);
-            } else {
+            if ((uint16_t)_x & 1) {
                 *buf_ptr = (*buf_ptr & 0b11110000) + _colorCode;
+            } else {
+                *buf_ptr = (*buf_ptr & 0b00001111) + (_colorCode << 4);
             }
         } break;
         case 1:  // 1bit Horizontal
@@ -1102,6 +1120,7 @@ uint16_t truetypeClass::getStringWidth(const char _character[]) {
     return output;
 }
 
+#ifdef ARDUINO
 uint16_t truetypeClass::getStringWidth(const String _string) {
     uint16_t length = _string.length();
     uint16_t output = 0;
@@ -1114,6 +1133,7 @@ uint16_t truetypeClass::getStringWidth(const String _string) {
     wcharacter = nullptr;
     return output;
 }
+#endif
 
 /* Points*/
 void truetypeClass::addPoint(int16_t _x, int16_t _y) {
@@ -1171,6 +1191,7 @@ uint32_t truetypeClass::seekToTable(const char *name) {
     return 0;
 }
 
+#ifdef ARDUINO
 /* calculate */
 void truetypeClass::stringToWchar(String _string, wchar_t _charctor[]) {
     uint16_t s = 0;
@@ -1243,6 +1264,7 @@ void truetypeClass::stringToWchar(String _string, wchar_t _charctor[]) {
     }
     _charctor[c] = 0;
 }
+#endif
 
 uint8_t truetypeClass::GetU8ByteCount(char _ch) {
     if (0 <= uint8_t(_ch) && uint8_t(_ch) < 0x80) {

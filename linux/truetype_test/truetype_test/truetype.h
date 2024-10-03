@@ -149,8 +149,8 @@ typedef struct {
 } ttKernFormat0_t;
 
 typedef struct {
-    float x;
-    float y;
+    int16_t x;
+    int16_t y;
 } ttCoordinate_t;
 
 typedef struct {
@@ -278,14 +278,14 @@ class truetypeClass {
     uint8_t readGlyph(uint16_t code, uint8_t _justSize = 0);
     void freeGlyph();
 
-    void addLine(float _x0, float _y0, float _x1, float _y1);
+    void addLine(int16_t _x0, int16_t _y0, int16_t _x1, int16_t _y1);
     void addPoint(int16_t _x, int16_t _y);
     void freePoints();
     void addBeginPoint(uint16_t _bp);
     void freeBeginPoints();
     void addEndPoint(uint16_t _ep);
     void freeEndPoints();
-    float isLeft(ttCoordinate_t *_p0, ttCoordinate_t *_p1, ttCoordinate_t *_point);
+    int32_t isLeft(ttCoordinate_t *_p0, ttCoordinate_t *_p1, ttCoordinate_t *_point);
 
     // write user framebuffer
     uint16_t characterSize = 20;
