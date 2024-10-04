@@ -53,7 +53,7 @@ typedef uint8_t byte;
 #define ROTATE_270 3
 
 #define FILE_BUF_SIZE 256
-typedef void(TTF_DRAWLINE)(int16_t _start_x, int16_t _end_x, int16_t _y, uint16_t _colorCode);
+typedef void(TTF_DRAWLINE)(int16_t _start_x, int16_t _start_y, int16_t _end_x, int16_t _end_y, uint16_t _colorCode);
 
 typedef struct {
     char name[5];
@@ -176,7 +176,7 @@ class truetypeClass {
 #ifdef ESP32
     uint8_t setTtfFile(File _file, uint8_t _checkCheckSum = 0);
 #endif
-    uint8_t setTtfPointer(uint8_t *pTTF, uint32_t u32Size, uint8_t _checkCheckSum = 0, bool bFlash = true);
+    uint8_t setTtfPointer(uint8_t *pTTF, uint32_t u32Size, uint8_t _checkCheckSum = 0);
     void setTtfDrawLine(TTF_DRAWLINE *p);
     void setFramebuffer(uint16_t _framebufferWidth, uint16_t _framebufferHeight, uint16_t _framebuffer_bit, uint8_t *_framebuffer);
     void setCharacterSpacing(int16_t _characterSpace, uint8_t _kerning = 1);
@@ -205,7 +205,6 @@ class truetypeClass {
     File file;
 #endif
     uint8_t *pTTF = NULL;                   // pointer to TTF data (not from file)
-    bool bFlash = true;                     // does the TTF data come from FLASH?
     uint32_t u32TTFSize, u32TTFOffset = 0;  // current read offset into TTF data
 
     int iBufferedBytes = 0;            // Number of bytes remaining in u8FileBuf
@@ -280,18 +279,15 @@ class truetypeClass {
     // glyf
     ttGlyph_t glyph;
     void generateOutline(int16_t _x, int16_t _y, uint16_t characterSize);
-    void freePointsAll();
+    void drawOutline(int16_t _x, int16_t _y, uint16_t characterSize);
     void fillGlyph(int16_t _x_min, int16_t _y_min, uint16_t characterSize);
     uint8_t readGlyph(uint16_t code, uint8_t _justSize = 0);
     void freeGlyph();
 
     void addLine(int16_t _x0, int16_t _y0, int16_t _x1, int16_t _y1);
     void addPoint(int16_t _x, int16_t _y);
-    void freePoints();
     void addBeginPoint(uint16_t _bp);
-    void freeBeginPoints();
     void addEndPoint(uint16_t _ep);
-    void freeEndPoints();
     int32_t isLeft(ttCoordinate_t *_p0, ttCoordinate_t *_p1, ttCoordinate_t *_point);
 
     // write user framebuffer
@@ -308,12 +304,13 @@ class truetypeClass {
     uint8_t stringRotation = 0x00;
     uint16_t colorLine = 0x00;
     uint16_t colorInside = 0x00;
+    bool bBigEndian = false;
     uint8_t *userFrameBuffer;
 #ifdef ARDUINO
     void stringToWchar(String _string, wchar_t _charctor[]);
 #endif
     void addPixel(int16_t _x, int16_t _y, uint16_t _colorCode);
-    void drawHLine(int16_t _start_x, int16_t _end_x, int16_t _y, uint16_t _colorCode);
+    void drawLine(int16_t _start_x, int16_t _start_y, int16_t _end_x, int16_t _end_y, uint16_t _colorCode);
     uint8_t GetU8ByteCount(char _ch);
     bool IsU8LaterByte(char _ch);
 };

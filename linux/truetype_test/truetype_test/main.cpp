@@ -122,7 +122,7 @@ int iHeaderSize;
     fclose(oHandle);
 } /* WriteBMP() */
 
-void DrawHLine(int16_t x1, int16_t x2, int16_t y, uint16_t color)
+void DrawLine(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color)
 {
     
 } /* DrawHLine() */
@@ -131,9 +131,9 @@ int main(int argc, const char * argv[]) {
     truetypeClass truetype = truetypeClass();
     FILE *f;
     uint8_t *pBitmap, *pFile;
-    int iSize;
+    int iSize, bpp = 16;
     
-    pBitmap = (uint8_t *)malloc(BITMAP_WIDTH * BITMAP_HEIGHT);
+    pBitmap = (uint8_t *)malloc((BITMAP_WIDTH * BITMAP_HEIGHT * bpp)/8);
     printf("TrueType font rendering test\n");
     printf(argv[1]);
     printf("\n");
@@ -150,14 +150,14 @@ int main(int argc, const char * argv[]) {
       printf("read ttf failed\n");
       return -1;
     }
-    truetype.setFramebuffer(BITMAP_WIDTH, BITMAP_HEIGHT, 1, pBitmap);
-    truetype.setTtfDrawLine(DrawHLine);
-    truetype.setCharacterSize(50);
+    truetype.setFramebuffer(BITMAP_WIDTH, BITMAP_HEIGHT, bpp, pBitmap);
+ //   truetype.setTtfDrawLine(DrawLine);
+    truetype.setCharacterSize(30);
     truetype.setCharacterSpacing(0);
     truetype.setTextBoundary(0, BITMAP_WIDTH, BITMAP_HEIGHT);
     
 
-    truetype.setTextColor(0xff, 0xff);
+    truetype.setTextColor(0xf800, 0x7e0);
 #ifndef DEBUG
     for (int i=0; i<10000; i++)
 #endif
@@ -166,6 +166,6 @@ int main(int argc, const char * argv[]) {
     }
   //  truetype.end();
     
-    WriteBMP("/Users/laurencebank/Downloads/ttf.bmp", pBitmap, NULL, BITMAP_WIDTH, BITMAP_HEIGHT, 1);
+    WriteBMP("/Users/laurencebank/Downloads/ttf.bmp", pBitmap, NULL, BITMAP_WIDTH, BITMAP_HEIGHT, bpp);
     return 0;
 }
