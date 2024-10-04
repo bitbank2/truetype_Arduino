@@ -31,6 +31,11 @@ typedef uint8_t byte;
 #include "FS.h"
 #endif /*FS_H*/
 
+// These limits are reasonable for complex glyphs
+// increase only if needed
+#define MAX_POINTS 1024
+#define MAX_ENDPOINTS 16
+
 #define FLAG_ONCURVE (1 << 0)
 #define FLAG_XSHORT (1 << 1)
 #define FLAG_YSHORT (1 << 2)
@@ -48,7 +53,7 @@ typedef uint8_t byte;
 #define ROTATE_270 3
 
 #define FILE_BUF_SIZE 256
-typedef void(TTF_DRAWPIXEL)(int16_t _x, int16_t _y, uint16_t _colorCode);
+typedef void(TTF_DRAWLINE)(int16_t _start_x, int16_t _end_x, int16_t _y, uint16_t _colorCode);
 
 typedef struct {
     char name[5];
@@ -159,9 +164,9 @@ typedef struct {
 } ttHMetric_t;
 
 typedef struct {
-    uint16_t p1;
-    uint16_t p2;
-    uint8_t up;
+    ttCoordinate_t *p1;
+    ttCoordinate_t *p2;
+    int8_t up;
 } ttWindIntersect_t;
 
 class truetypeClass {
@@ -172,7 +177,7 @@ class truetypeClass {
     uint8_t setTtfFile(File _file, uint8_t _checkCheckSum = 0);
 #endif
     uint8_t setTtfPointer(uint8_t *pTTF, uint32_t u32Size, uint8_t _checkCheckSum = 0, bool bFlash = true);
-    void setTtfDrawPixel(TTF_DRAWPIXEL *p);
+    void setTtfDrawLine(TTF_DRAWLINE *p);
     void setFramebuffer(uint16_t _framebufferWidth, uint16_t _framebufferHeight, uint16_t _framebuffer_bit, uint8_t *_framebuffer);
     void setCharacterSpacing(int16_t _characterSpace, uint8_t _kerning = 1);
     void setCharacterSize(uint16_t _characterSize);
@@ -208,7 +213,7 @@ class truetypeClass {
     uint32_t u32BufPosition;           // Current position in the buffer
     uint32_t iCurrentBufSize = 0;
 
-    TTF_DRAWPIXEL *pfnDrawPixel = NULL;
+    TTF_DRAWLINE *pfnDrawLine = NULL;
 
     uint16_t charCode;
     int16_t xMin, xMax, yMin, yMax;
@@ -262,16 +267,18 @@ class truetypeClass {
     uint8_t readHhea();
 
     // generate points
-    ttCoordinate_t *points = nullptr;
+    ttCoordinate_t points[MAX_POINTS];
+//    ttCoordinate_t *points = nullptr;
     uint16_t numPoints = 0;
-    uint16_t *beginPoints = nullptr;
+    uint16_t beginPoints[MAX_ENDPOINTS];
+//    uint16_t *beginPoints = nullptr;
     uint16_t numBeginPoints = 0;
-    uint16_t *endPoints = nullptr;
+    uint16_t endPoints[MAX_ENDPOINTS];
+//    uint16_t *endPoints = nullptr;
     uint16_t numEndPoints = 0;
 
     // glyf
     ttGlyph_t glyph;
-    ttWindIntersect_t *pointsToFill = nullptr;
     void generateOutline(int16_t _x, int16_t _y, uint16_t characterSize);
     void freePointsAll();
     void fillGlyph(int16_t _x_min, int16_t _y_min, uint16_t characterSize);
@@ -306,6 +313,7 @@ class truetypeClass {
     void stringToWchar(String _string, wchar_t _charctor[]);
 #endif
     void addPixel(int16_t _x, int16_t _y, uint16_t _colorCode);
+    void drawHLine(int16_t _start_x, int16_t _end_x, int16_t _y, uint16_t _colorCode);
     uint8_t GetU8ByteCount(char _ch);
     bool IsU8LaterByte(char _ch);
 };

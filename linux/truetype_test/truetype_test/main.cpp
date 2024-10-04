@@ -122,6 +122,11 @@ int iHeaderSize;
     fclose(oHandle);
 } /* WriteBMP() */
 
+void DrawHLine(int16_t x1, int16_t x2, int16_t y, uint16_t color)
+{
+    
+} /* DrawHLine() */
+
 int main(int argc, const char * argv[]) {
     truetypeClass truetype = truetypeClass();
     FILE *f;
@@ -130,6 +135,9 @@ int main(int argc, const char * argv[]) {
     
     pBitmap = (uint8_t *)malloc(BITMAP_WIDTH * BITMAP_HEIGHT);
     printf("TrueType font rendering test\n");
+    printf(argv[1]);
+    printf("\n");
+//    f = fopen(argv[1], "r+b");
     f = fopen("/Users/laurencebank/Downloads/Roboto/Roboto-Black.ttf", "r+b");
     fseek(f, 0, SEEK_END);
     iSize = (int)ftell(f);
@@ -143,15 +151,20 @@ int main(int argc, const char * argv[]) {
       return -1;
     }
     truetype.setFramebuffer(BITMAP_WIDTH, BITMAP_HEIGHT, 1, pBitmap);
-    truetype.setCharacterSize(150);
+    truetype.setTtfDrawLine(DrawHLine);
+    truetype.setCharacterSize(50);
     truetype.setCharacterSpacing(0);
     truetype.setTextBoundary(0, BITMAP_WIDTH, BITMAP_HEIGHT);
     
 
     truetype.setTextColor(0xff, 0xff);
-    for (int i=0; i<10000; i++) {
-        truetype.textDraw(0, 400, "12:34");
+#ifndef DEBUG
+    for (int i=0; i<10000; i++)
+#endif
+    {
+        truetype.textDraw(0, 400, "12:34 abcde");
     }
+  //  truetype.end();
     
     WriteBMP("/Users/laurencebank/Downloads/ttf.bmp", pBitmap, NULL, BITMAP_WIDTH, BITMAP_HEIGHT, 1);
     return 0;
