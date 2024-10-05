@@ -169,9 +169,74 @@ typedef struct {
     int8_t up;
 } ttWindIntersect_t;
 
-class truetypeClass {
+// structure holding all of the class member variables
+typedef struct bbtt_tag {
+#ifdef ESP32
+    File file;
+#endif
+    uint8_t *pTTF;                   // pointer to TTF data (not from file)
+    uint32_t u32TTFSize;
+    uint32_t u32TTFOffset;  // current read offset into TTF data
+
+    int iBufferedBytes;            // Number of bytes remaining in u8FileBuf
+    uint8_t u8FileBuf[FILE_BUF_SIZE];  // Buffered reads from the file system
+    uint32_t u32BufPosition;           // Current position in the buffer
+    uint32_t iCurrentBufSize;
+
+    TTF_DRAWLINE *pfnDrawLine;
+
+    uint16_t charCode;
+    int16_t xMin, xMax, yMin, yMax;
+    uint16_t numTables;
+    ttTable_t *table;
+    ttHeadttTable_t headTable;
+    // cmap. maps character codes to glyph indices
+    ttCmapIndex_t cmapIndex;
+    ttCmapEncoding_t *cmapEncoding;
+    ttCmapFormat4_t cmapFormat4;
+    ttGlyphTransformation_t glyphTransformation;
+    uint32_t hmtxTablePos;
+    // kerning.
+    ttKernHeader_t kernHeader;
+    ttKernSubtable_t kernSubtable;
+    ttKernFormat0_t kernFormat0;
+    uint32_t kernTablePos;
+    int16_t ascender;
+    // generate points
+    ttCoordinate_t points[MAX_POINTS];
+    uint16_t numPoints;
+    uint16_t beginPoints[MAX_ENDPOINTS];
+    uint16_t numBeginPoints;
+    uint16_t endPoints[MAX_ENDPOINTS];
+    uint16_t numEndPoints;
+
+    // glyf
+    ttGlyph_t glyph;
+    // write user framebuffer
+    uint8_t *userFrameBuffer;
+    uint16_t characterSize;
+    int16_t characterSpace;
+    int16_t start_x;
+    int16_t end_x;
+    int16_t end_y;
+    uint16_t displayWidth;
+    uint16_t displayHeight;
+    uint16_t displayWidthFrame;
+    uint16_t framebufferBit;
+    uint8_t stringRotation;
+    uint16_t colorLine;
+    uint16_t colorInside;
+    uint8_t kerningOn;
+    uint8_t bBigEndian;
+
+} BBTT;
+
+const int numTablesPos = 4;
+const int tablePos = 12;
+
+class bb_truetype {
    public:
-    truetypeClass();
+    bb_truetype();
 
 #ifdef ESP32
     uint8_t setTtfFile(File _file, uint8_t _checkCheckSum = 0);
@@ -185,8 +250,8 @@ class truetypeClass {
     void setTextColor(uint16_t _onLine, uint16_t _inside);
     void setTextRotation(uint16_t _rotation);
 
-    uint16_t getStringWidth(const wchar_t _character[]);
-    uint16_t getStringWidth(const char _character[]);
+    uint16_t getStringWidth(const wchar_t *szwString);
+    uint16_t getStringWidth(const char *szString);
 #ifdef ARDUINO
     uint16_t getStringWidth(const String _string);
     void textDraw(int16_t _x, int16_t _y, const String _string);
@@ -195,40 +260,19 @@ class truetypeClass {
     void textDraw(int16_t _x, int16_t _y, const wchar_t _character[]);
     void textDraw(int16_t _x, int16_t _y, const char _character[]);
 
-    int ttfRead(uint8_t *d, int iLen);
-    void ttfSeek(uint32_t u32Offset);
-    uint32_t ttfPosition(void);
     void end();
 
    private:
-#ifdef ESP32
-    File file;
-#endif
-    uint8_t *pTTF = NULL;                   // pointer to TTF data (not from file)
-    uint32_t u32TTFSize, u32TTFOffset = 0;  // current read offset into TTF data
 
-    int iBufferedBytes = 0;            // Number of bytes remaining in u8FileBuf
-    uint8_t u8FileBuf[FILE_BUF_SIZE];  // Buffered reads from the file system
-    uint32_t u32BufPosition;           // Current position in the buffer
-    uint32_t iCurrentBufSize = 0;
-
-    TTF_DRAWLINE *pfnDrawLine = NULL;
-
-    uint16_t charCode;
-    int16_t xMin, xMax, yMin, yMax;
-
-    const int numTablesPos = 4;
-    const int tablePos = 12;
-
-    uint16_t numTables;
-    ttTable_t *table;
-    ttHeadttTable_t headTable;
-
+    BBTT _bbtt;
     uint8_t getUInt8t();
     int16_t getInt16t();
     uint16_t getUInt16t();
     uint32_t getUInt32t();
 
+    int ttfRead(uint8_t *d, int iLen);
+    void ttfSeek(uint32_t u32Offset);
+    uint32_t ttfPosition(void);
     // basic
     uint32_t calculateCheckSum(uint32_t offset, uint32_t length);
     uint32_t seekToTable(const char *name);
@@ -237,47 +281,22 @@ class truetypeClass {
     void readCoords(char _xy, uint16_t _startPoint = 0);
 
     // Glyph
-    ttGlyphTransformation_t glyphTransformation;
     uint32_t getGlyphOffset(uint16_t index);
     uint16_t codeToGlyphId(uint16_t code);
     uint8_t readSimpleGlyph(uint8_t _addGlyph = 0);
     uint8_t readCompoundGlyph();
 
-    // cmap. maps character codes to glyph indices
-    ttCmapIndex_t cmapIndex;
-    ttCmapEncoding_t *cmapEncoding;
-    ttCmapFormat4_t cmapFormat4;
     uint8_t readCmapFormat4();
     uint8_t readCmap();
 
     // hmtx. metric information for the horizontal layout each of the glyphs
-    uint32_t hmtxTablePos = 0;
     uint8_t readHMetric();
     ttHMetric_t getHMetric(uint16_t _code);
 
-    // kerning.
-    ttKernHeader_t kernHeader;
-    ttKernSubtable_t kernSubtable;
-    ttKernFormat0_t kernFormat0;
-    uint32_t kernTablePos = 0;
     uint8_t readKern();
     int16_t getKerning(uint16_t _left_glyph, uint16_t _right_glyph);
-    int16_t ascender = 0;
     uint8_t readHhea();
 
-    // generate points
-    ttCoordinate_t points[MAX_POINTS];
-//    ttCoordinate_t *points = nullptr;
-    uint16_t numPoints = 0;
-    uint16_t beginPoints[MAX_ENDPOINTS];
-//    uint16_t *beginPoints = nullptr;
-    uint16_t numBeginPoints = 0;
-    uint16_t endPoints[MAX_ENDPOINTS];
-//    uint16_t *endPoints = nullptr;
-    uint16_t numEndPoints = 0;
-
-    // glyf
-    ttGlyph_t glyph;
     void generateOutline(int16_t _x, int16_t _y, uint16_t characterSize);
     void drawOutline(int16_t _x, int16_t _y, uint16_t characterSize);
     void fillGlyph(int16_t _x_min, int16_t _y_min, uint16_t characterSize);
@@ -285,31 +304,11 @@ class truetypeClass {
     void freeGlyph();
 
     void addLine(int16_t _x0, int16_t _y0, int16_t _x1, int16_t _y1);
-    void addPoint(int16_t _x, int16_t _y);
-    void addBeginPoint(uint16_t _bp);
-    void addEndPoint(uint16_t _ep);
     int32_t isLeft(ttCoordinate_t *_p0, ttCoordinate_t *_p1, ttCoordinate_t *_point);
 
-    // write user framebuffer
-    uint16_t characterSize = 20;
-    uint8_t kerningOn = 1;
-    int16_t characterSpace = 0;
-    int16_t start_x = 10;
-    int16_t end_x = 300;
-    int16_t end_y = 300;
-    uint16_t displayWidth = 400;
-    uint16_t displayHeight = 400;
-    uint16_t displayWidthFrame = 400;
-    uint16_t framebufferBit = 8;
-    uint8_t stringRotation = 0x00;
-    uint16_t colorLine = 0x00;
-    uint16_t colorInside = 0x00;
-    bool bBigEndian = false;
-    uint8_t *userFrameBuffer;
 #ifdef ARDUINO
     void stringToWchar(String _string, wchar_t _charctor[]);
 #endif
-    void addPixel(int16_t _x, int16_t _y, uint16_t _colorCode);
     void drawLine(int16_t _start_x, int16_t _start_y, int16_t _end_x, int16_t _end_y, uint16_t _colorCode);
     uint8_t GetU8ByteCount(char _ch);
     bool IsU8LaterByte(char _ch);

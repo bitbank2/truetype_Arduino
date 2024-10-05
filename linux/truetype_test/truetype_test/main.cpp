@@ -122,18 +122,97 @@ int iHeaderSize;
     fclose(oHandle);
 } /* WriteBMP() */
 
+//
+// Read a Windows BMP file into memory
+//
+uint8_t * ReadBMP(const char *fname, int *width, int *height, int *bpp, unsigned char *pPal)
+{
+    int y, w, h, bits, offset;
+    uint8_t *s, *d, *pTemp, *pBitmap;
+    int pitch, bytewidth;
+    int iSize, iDelta;
+    FILE *infile;
+    
+    infile = fopen(fname, "r+b");
+    if (infile == NULL) {
+        printf("Error opening input file %s\n", fname);
+        return NULL;
+    }
+    // Read the bitmap into RAM
+    fseek(infile, 0, SEEK_END);
+    iSize = (int)ftell(infile);
+    fseek(infile, 0, SEEK_SET);
+    pBitmap = (uint8_t *)malloc(iSize);
+    pTemp = (uint8_t *)malloc(iSize);
+    fread(pTemp, 1, iSize, infile);
+    fclose(infile);
+    
+    if (pTemp[0] != 'B' || pTemp[1] != 'M' || pTemp[14] < 0x28) {
+        free(pBitmap);
+        free(pTemp);
+        printf("Not a Windows BMP file!\n");
+        return NULL;
+    }
+    w = *(int32_t *)&pTemp[18];
+    h = *(int32_t *)&pTemp[22];
+    bits = *(int16_t *)&pTemp[26] * *(int16_t *)&pTemp[28];
+    if (bits <= 8 && pPal) { // it has a palette, copy it
+        uint8_t *p = pPal;
+        for (int i=0; i<(1<<bits); i++)
+        {
+           *p++ = pTemp[54+i*4];
+           *p++ = pTemp[55+i*4];
+           *p++ = pTemp[56+i*4];
+        }
+    }
+    offset = *(int32_t *)&pTemp[10]; // offset to bits
+    bytewidth = (w * bits) >> 3;
+    pitch = (bytewidth + 3) & 0xfffc; // DWORD aligned
+// move up the pixels
+    d = pBitmap;
+    s = &pTemp[offset];
+    iDelta = pitch;
+    if (h > 0) {
+        iDelta = -pitch;
+        s = &pTemp[offset + (h-1) * pitch];
+    } else {
+        h = -h;
+    }
+    for (y=0; y<h; y++) {
+        if (bits == 32) {// need to swap red and blue
+            for (int i=0; i<bytewidth; i+=4) {
+                d[i] = s[i+2];
+                d[i+1] = s[i+1];
+                d[i+2] = s[i];
+                d[i+3] = s[i+3];
+            }
+        } else {
+            memcpy(d, s, bytewidth);
+        }
+        d += bytewidth;
+        s += iDelta;
+    }
+    *width = w;
+    *height = h;
+    *bpp = bits;
+    free(pTemp);
+    return pBitmap;
+    
+} /* ReadBMP() */
+
 void DrawLine(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color)
 {
     
 } /* DrawHLine() */
 
 int main(int argc, const char * argv[]) {
-    truetypeClass truetype = truetypeClass();
+    bb_truetype truetype = bb_truetype();
     FILE *f;
     uint8_t *pBitmap, *pFile;
-    int iSize, bpp = 16;
+    int iSize, width, height, bpp;
     
-    pBitmap = (uint8_t *)malloc((BITMAP_WIDTH * BITMAP_HEIGHT * bpp)/8);
+//    pBitmap = (uint8_t *)malloc((BITMAP_WIDTH * BITMAP_HEIGHT * bpp)/8);
+    pBitmap = ReadBMP("/Users/laurencebank/Downloads/squirrel.bmp", &width, &height, &bpp, NULL);
     printf("TrueType font rendering test\n");
     printf(argv[1]);
     printf("\n");
@@ -150,22 +229,20 @@ int main(int argc, const char * argv[]) {
       printf("read ttf failed\n");
       return -1;
     }
-    truetype.setFramebuffer(BITMAP_WIDTH, BITMAP_HEIGHT, bpp, pBitmap);
- //   truetype.setTtfDrawLine(DrawLine);
-    truetype.setCharacterSize(30);
+    truetype.setFramebuffer(width, height, bpp, pBitmap);
+    //truetype.setTtfDrawLine(DrawLine);
+    truetype.setCharacterSize(36);
     truetype.setCharacterSpacing(0);
-    truetype.setTextBoundary(0, BITMAP_WIDTH, BITMAP_HEIGHT);
-    
-
-    truetype.setTextColor(0xf800, 0x7e0);
+    truetype.setTextBoundary(0, width, height);
+    truetype.setTextColor(0, 0xff);
 #ifndef DEBUG
     for (int i=0; i<10000; i++)
 #endif
     {
-        truetype.textDraw(0, 400, "12:34 abcde");
+        truetype.textDraw(280, 420, "This is a squirrel");
     }
   //  truetype.end();
     
-    WriteBMP("/Users/laurencebank/Downloads/ttf.bmp", pBitmap, NULL, BITMAP_WIDTH, BITMAP_HEIGHT, bpp);
+    WriteBMP("/Users/laurencebank/Downloads/ttf.bmp", pBitmap, NULL, width, height, bpp);
     return 0;
 }
