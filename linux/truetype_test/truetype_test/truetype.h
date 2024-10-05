@@ -7,8 +7,8 @@ get info on a ttf file: https://fontdrop.info/
 MIT licencse
 original source by https://github.com/garretlab/truetype
 extended by https://github.com/k-omura/truetype_Arduino/
-changes to file reading by https://github.com/bitbank2/truetype_Arduino
 lots of bugfixes and improvements by Nic.
+total rewrite and optimization by Larry Bank
 */
 
 #define TRUETYPE_H
@@ -31,10 +31,21 @@ typedef uint8_t byte;
 #include "FS.h"
 #endif /*FS_H*/
 
+// Use this to skip either drawing the outline or the inside
+#define COLOR_NONE 0x80000001
+
 // These limits are reasonable for complex glyphs
 // increase only if needed
+// These constants are to avoid the use of dynamic memory
+// allocation within the library
+
 #define MAX_POINTS 1024
 #define MAX_ENDPOINTS 16
+
+#define MAX_CONTOURS 16
+#define MAX_GLYPH_POINTS 256
+
+#define MAX_TABLES 64
 
 #define FLAG_ONCURVE (1 << 0)
 #define FLAG_XSHORT (1 << 1)
@@ -53,7 +64,7 @@ typedef uint8_t byte;
 #define ROTATE_270 3
 
 #define FILE_BUF_SIZE 256
-typedef void(TTF_DRAWLINE)(int16_t _start_x, int16_t _start_y, int16_t _end_x, int16_t _end_y, uint16_t _colorCode);
+typedef void(TTF_DRAWLINE)(int16_t _start_x, int16_t _start_y, int16_t _end_x, int16_t _end_y, uint32_t _colorCode);
 
 typedef struct {
     char name[5];
@@ -94,9 +105,9 @@ typedef struct {
     int16_t yMin;
     int16_t xMax;
     int16_t yMax;
-    uint16_t *endPtsOfContours;
+    uint16_t endPtsOfContours[MAX_CONTOURS];
     uint16_t numberOfPoints;
-    ttPoint_t *points;
+    ttPoint_t points[MAX_GLYPH_POINTS];
 } ttGlyph_t;
 
 typedef struct {
@@ -188,7 +199,7 @@ typedef struct bbtt_tag {
     uint16_t charCode;
     int16_t xMin, xMax, yMin, yMax;
     uint16_t numTables;
-    ttTable_t *table;
+    ttTable_t table[MAX_TABLES];
     ttHeadttTable_t headTable;
     // cmap. maps character codes to glyph indices
     ttCmapIndex_t cmapIndex;
@@ -224,8 +235,8 @@ typedef struct bbtt_tag {
     uint16_t displayWidthFrame;
     uint16_t framebufferBit;
     uint8_t stringRotation;
-    uint16_t colorLine;
-    uint16_t colorInside;
+    uint32_t colorLine;
+    uint32_t colorInside;
     uint8_t kerningOn;
     uint8_t bBigEndian;
 
@@ -247,7 +258,7 @@ class bb_truetype {
     void setCharacterSpacing(int16_t _characterSpace, uint8_t _kerning = 1);
     void setCharacterSize(uint16_t _characterSize);
     void setTextBoundary(uint16_t _start_x, uint16_t _end_x, uint16_t _end_y);
-    void setTextColor(uint16_t _onLine, uint16_t _inside);
+    void setTextColor(uint32_t _onLine, uint32_t _inside);
     void setTextRotation(uint16_t _rotation);
 
     uint16_t getStringWidth(const wchar_t *szwString);
@@ -265,51 +276,7 @@ class bb_truetype {
    private:
 
     BBTT _bbtt;
-    uint8_t getUInt8t();
-    int16_t getInt16t();
-    uint16_t getUInt16t();
-    uint32_t getUInt32t();
-
-    int ttfRead(uint8_t *d, int iLen);
-    void ttfSeek(uint32_t u32Offset);
-    uint32_t ttfPosition(void);
-    // basic
-    uint32_t calculateCheckSum(uint32_t offset, uint32_t length);
-    uint32_t seekToTable(const char *name);
-    int readTableDirectory(int checkCheckSum);
-    void readHeadTable();
-    void readCoords(char _xy, uint16_t _startPoint = 0);
-
-    // Glyph
-    uint32_t getGlyphOffset(uint16_t index);
-    uint16_t codeToGlyphId(uint16_t code);
-    uint8_t readSimpleGlyph(uint8_t _addGlyph = 0);
-    uint8_t readCompoundGlyph();
-
-    uint8_t readCmapFormat4();
-    uint8_t readCmap();
-
-    // hmtx. metric information for the horizontal layout each of the glyphs
-    uint8_t readHMetric();
-    ttHMetric_t getHMetric(uint16_t _code);
-
-    uint8_t readKern();
-    int16_t getKerning(uint16_t _left_glyph, uint16_t _right_glyph);
-    uint8_t readHhea();
-
-    void generateOutline(int16_t _x, int16_t _y, uint16_t characterSize);
-    void drawOutline(int16_t _x, int16_t _y, uint16_t characterSize);
-    void fillGlyph(int16_t _x_min, int16_t _y_min, uint16_t characterSize);
-    uint8_t readGlyph(uint16_t code, uint8_t _justSize = 0);
-    void freeGlyph();
-
-    void addLine(int16_t _x0, int16_t _y0, int16_t _x1, int16_t _y1);
-    int32_t isLeft(ttCoordinate_t *_p0, ttCoordinate_t *_p1, ttCoordinate_t *_point);
-
 #ifdef ARDUINO
     void stringToWchar(String _string, wchar_t _charctor[]);
 #endif
-    void drawLine(int16_t _start_x, int16_t _start_y, int16_t _end_x, int16_t _end_y, uint16_t _colorCode);
-    uint8_t GetU8ByteCount(char _ch);
-    bool IsU8LaterByte(char _ch);
 };

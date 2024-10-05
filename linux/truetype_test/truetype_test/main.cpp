@@ -216,8 +216,8 @@ int main(int argc, const char * argv[]) {
     printf("TrueType font rendering test\n");
     printf(argv[1]);
     printf("\n");
-//    f = fopen(argv[1], "r+b");
-    f = fopen("/Users/laurencebank/Downloads/Roboto/Roboto-Black.ttf", "r+b");
+    f = fopen(argv[1], "r+b");
+//    f = fopen("/Users/laurencebank/Downloads/Roboto/Roboto-Black.ttf", "r+b");
     fseek(f, 0, SEEK_END);
     iSize = (int)ftell(f);
     fseek(f, 0, SEEK_SET);
@@ -243,6 +243,6 @@ int main(int argc, const char * argv[]) {
     }
   //  truetype.end();
     
-    WriteBMP("/Users/laurencebank/Downloads/ttf.bmp", pBitmap, NULL, width, height, bpp);
+    WriteBMP((char *)"/Users/laurencebank/Downloads/ttf.bmp", pBitmap, NULL, width, height, bpp);
     return 0;
 }

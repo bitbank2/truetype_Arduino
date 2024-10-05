@@ -3,11 +3,30 @@
 //
 // An imperfect, but fast TrueType renderer for constrained systems
 // written by Larry Bank
-// Copyright (c) 2024 BitBank Software, Inc.
 //
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
+/*
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2024 BitBank Software, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
 void bbttInit(BBTT *pBBTT)
 {
@@ -48,7 +67,7 @@ void bbttSetRotation(BBTT *pBBTT, uint16_t _rotation)
     pBBTT->stringRotation = _rotation;
 } /* bbttSetRotation() */
 
-void bbttSetTextColor(BBTT *pBBTT, uint16_t _onLine, uint16_t _inside)
+void bbttSetTextColor(BBTT *pBBTT, uint32_t _onLine, uint32_t _inside)
 {
     pBBTT->colorLine = _onLine;
     pBBTT->colorInside = _inside;
@@ -286,12 +305,6 @@ uint8_t bbttReadSimpleGlyph(BBTT *pBBTT, uint8_t _addGlyph) {
         counterPoints = 0;
     }
 
-    if (_addGlyph) {
-        pBBTT->glyph.endPtsOfContours = (uint16_t *)realloc(pBBTT->glyph.endPtsOfContours, (sizeof(uint16_t) * pBBTT->glyph.numberOfContours));
-    } else {
-        pBBTT->glyph.endPtsOfContours = (uint16_t *)malloc((sizeof(uint16_t) * pBBTT->glyph.numberOfContours));
-    }
-
     for (uint16_t i = counterContours; i < pBBTT->glyph.numberOfContours; i++) {
         pBBTT->glyph.endPtsOfContours[i] = counterPoints + bbttGetUInt16t(pBBTT);
     }
@@ -304,12 +317,6 @@ uint8_t bbttReadSimpleGlyph(BBTT *pBBTT, uint8_t _addGlyph) {
         }
     }
     pBBTT->glyph.numberOfPoints++;
-
-    if (_addGlyph) {
-        pBBTT->glyph.points = (ttPoint_t *)realloc(pBBTT->glyph.points, sizeof(ttPoint_t) * (pBBTT->glyph.numberOfPoints + pBBTT->glyph.numberOfContours));
-    } else {
-        pBBTT->glyph.points = (ttPoint_t *)malloc(sizeof(ttPoint_t) * (pBBTT->glyph.numberOfPoints + pBBTT->glyph.numberOfContours));
-    }
 
     for (uint16_t i = counterPoints; i < pBBTT->glyph.numberOfPoints; i++) {
         flag = bbttGetUInt8t(pBBTT);
@@ -862,16 +869,6 @@ void bbttFillGlyph(BBTT *pBBTT, int16_t _x_min, int16_t _y_min, uint16_t charact
     }
 }
 
-/* free glyph */
-void bbttFreeGlyph(BBTT *pBBTT)
-{
-    if (pBBTT->glyph.points != nullptr) free(pBBTT->glyph.points);
-    if (pBBTT->glyph.endPtsOfContours != nullptr) free(pBBTT->glyph.endPtsOfContours);
-    pBBTT->glyph.points = nullptr;
-    pBBTT->glyph.endPtsOfContours = nullptr;
-    pBBTT->glyph.numberOfPoints = 0;
-}
-
 void bbttTextDraw(BBTT *pBBTT, int16_t _x, int16_t _y, const wchar_t _character[]) {
     uint8_t c = 0;
     uint16_t prev_code = 0;
@@ -922,13 +919,16 @@ void bbttTextDraw(BBTT *pBBTT, int16_t _x, int16_t _y, const wchar_t _character[
 
         if (pBBTT->glyph.numberOfContours >= 0) {
             bbttGenerateOutline(pBBTT, _x, _y, pBBTT->characterSize);
-            bbttFillGlyph(pBBTT, _x, _y, pBBTT->characterSize);
-            if (pBBTT->colorLine != pBBTT->colorInside) {
+            if (pBBTT->colorInside != COLOR_NONE) {
+                bbttFillGlyph(pBBTT, _x, _y, pBBTT->characterSize);
+            }
+            if (pBBTT->colorLine != COLOR_NONE && pBBTT->colorLine != pBBTT->colorInside) {
                 bbttDrawOutline(pBBTT, _x, _y, pBBTT->characterSize);
             }
         }
         pBBTT->numPoints = pBBTT->numBeginPoints = pBBTT->numEndPoints = 0; // reset for next pass
-        bbttFreeGlyph(pBBTT);
+        pBBTT->glyph.numberOfPoints = 0;
+        pBBTT->glyph.numberOfContours = 0;
 
         _x += hMetric.advanceWidth;
         c++;
@@ -939,7 +939,6 @@ void bbttTextDraw(BBTT *pBBTT, int16_t _x, int16_t _y, const wchar_t _character[
 int bbttReadTableDirectory(BBTT *pBBTT, int checkCheckSum) {
     bbttSeek(pBBTT, numTablesPos);
     pBBTT->numTables = bbttGetUInt16t(pBBTT);
-    pBBTT->table = (ttTable_t *)malloc(sizeof(ttTable_t) * pBBTT->numTables);
     bbttSeek(pBBTT, tablePos);
     for (int i = 0; i < pBBTT->numTables; i++) {
         for (int j = 0; j < 4; j++) {
@@ -1083,8 +1082,8 @@ void bbttEnd(BBTT *pBBTT) {
 #ifdef ESP32
     file.close();
 #endif
-    bbttFreeGlyph(pBBTT);
-    if (pBBTT->table != nullptr) free(pBBTT->table);
+    pBBTT->glyph.numberOfPoints = 0;
+    pBBTT->glyph.numberOfContours = 0;
 }
 
 void bbttSetFramebuffer(BBTT *pBBTT, uint16_t _framebufferWidth, uint16_t _framebufferHeight, uint16_t _framebuffer_bit, uint8_t *_framebuffer) {
