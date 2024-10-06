@@ -216,8 +216,8 @@ int main(int argc, const char * argv[]) {
     printf("TrueType font rendering test\n");
     printf(argv[1]);
     printf("\n");
-    f = fopen(argv[1], "r+b");
-//    f = fopen("/Users/laurencebank/Downloads/Roboto/Roboto-Black.ttf", "r+b");
+//    f = fopen(argv[1], "r+b");
+    f = fopen("/Users/laurencebank/Downloads/Roboto/Roboto-Black.ttf", "r+b");
     fseek(f, 0, SEEK_END);
     iSize = (int)ftell(f);
     fseek(f, 0, SEEK_SET);
@@ -231,10 +231,14 @@ int main(int argc, const char * argv[]) {
     }
     truetype.setFramebuffer(width, height, bpp, pBitmap);
     //truetype.setTtfDrawLine(DrawLine);
-    truetype.setCharacterSize(36);
+    truetype.setCharacterSize(120);
     truetype.setCharacterSpacing(0);
+    truetype.setTextAlignment(TEXT_ALIGN_RIGHT);
     truetype.setTextBoundary(0, width, height);
-    truetype.setTextColor(0, 0xff);
+    truetype.setTextColor(0xff, 0xff);
+//    ttCharBox_t charbox;
+//    truetype.getCharBox(':', &charbox);
+//    int cx = truetype.getStringWidth(":");
 #ifndef DEBUG
     for (int i=0; i<10000; i++)
 #endif

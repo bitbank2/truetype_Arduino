@@ -43,6 +43,7 @@ void bbttInit(BBTT *pBBTT)
     pBBTT->pTTF = NULL;
     pBBTT->pfnDrawLine = NULL;
     pBBTT->iCurrentBufSize = 0;
+    pBBTT->textAlign = TEXT_ALIGN_LEFT;
 } /* bbttInit() */
 
 void bbttSetRotation(BBTT *pBBTT, uint16_t _rotation)
@@ -873,6 +874,16 @@ void bbttTextDraw(BBTT *pBBTT, int16_t _x, int16_t _y, const wchar_t _character[
     uint8_t c = 0;
     uint16_t prev_code = 0;
 
+    if (pBBTT->textAlign != TEXT_ALIGN_LEFT) {
+        // need to get the width of the curernt line to center it or align right
+        int cx = bbttGetStringWidthW(pBBTT, _character);
+        if (pBBTT->textAlign == TEXT_ALIGN_CENTER) {
+            _x = pBBTT->start_x + (pBBTT->end_x - pBBTT->start_x - cx)/2;
+        } else { // right align
+            _x = pBBTT->end_x - cx;
+        }
+        if (_x < pBBTT->start_x) _x = pBBTT->start_x; // can't start left of text box
+    }
     while (_character[c] != '\0') {
         // space (half-width, full-width)
         if ((_character[c] == ' ') || (_character[c] == L'　')) {
@@ -895,7 +906,9 @@ void bbttTextDraw(BBTT *pBBTT, int16_t _x, int16_t _y, const wchar_t _character[
         }
 #endif
         prev_code = pBBTT->charCode;
-
+        if (prev_code == 0) {
+            pBBTT->lastError = BBTT_GLYPH_NOT_FOUND;
+        }
         ttHMetric_t hMetric = bbttGetHMetric(pBBTT, pBBTT->charCode);
 
         // Line breaks when reaching the edge of the display
@@ -1050,6 +1063,7 @@ uint8_t bbttSetTtfPointer(BBTT *pBBTT, uint8_t *p, uint32_t u32Size, uint8_t _ch
     pBBTT->pTTF = p;
     pBBTT->u32TTFSize = u32Size;
 
+   // printf("BBTT size = %d\n", sizeof(BBTT));
     if (bbttReadTableDirectory(pBBTT, _checkCheckSum) == 0) {
 #ifdef ESP32
         file.close();
@@ -1140,7 +1154,7 @@ uint8_t bbttSetTtfFile(BBTT *pBBTT, File _file, uint8_t _checkCheckSum) {
 #endif // ESP32
 
 void bbttSetCharacterSize(BBTT *pBBTT, uint16_t _characterSize) {
-    pBBTT->characterSize = _characterSize * 2; // this needs to be doubled to match the freetype point size
+    pBBTT->characterSize = _characterSize;
 }
 
 void bbttSetCharacterSpacing(BBTT *pBBTT, int16_t _characterSpace, uint8_t _kerning) {
@@ -1212,3 +1226,29 @@ int16_t bbttGetKerning(BBTT *pBBTT, uint16_t _left_glyph, uint16_t _right_glyph)
     return result;
 } /* bbttGetKerning() */
 #endif
+
+//
+// Get the position and size of the bitmap for the given character
+//
+void bbttGetCharBox(BBTT *pBBTT, wchar_t _c, ttCharBox_t *pBox)
+{
+    ttHMetric_t hMetric;
+    uint16_t code;
+    
+    if (!pBox) return; // silently fail when passed NULL
+    code = bbttCodeToGlyphId(pBBTT, _c);
+    if (code == 0) return; // silently fail when passed a character not in the font
+    
+    bbttReadGlyph(pBBTT, code, 1);
+    hMetric = bbttGetHMetric(pBBTT, code);
+    
+    pBox->xAdvance = hMetric.advanceWidth;
+    pBox->xOffset = hMetric.leftSideBearing;
+    int16_t ys = round((float)(pBBTT->ascender - pBBTT->glyph.yMax) * (float)pBBTT->characterSize / (float)pBBTT->headTable.unitsPerEm);
+    int16_t ye = round((float)(pBBTT->ascender - pBBTT->glyph.yMin) * (float)pBBTT->characterSize / (float)pBBTT->headTable.unitsPerEm);
+    int16_t xs = round((float)pBBTT->glyph.xMin * (float)pBBTT->characterSize / (float)pBBTT->headTable.unitsPerEm);
+    int16_t xe = /*_x_min +*/ round((float)pBBTT->glyph.xMax * (float)pBBTT->characterSize / (float)pBBTT->headTable.unitsPerEm);
+    pBox->width = (xe - xs);
+    pBox->height = (ye - ys);
+    pBox->yOffset = ys;
+} /* bbttGetCharBox() */

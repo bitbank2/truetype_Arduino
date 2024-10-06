@@ -63,7 +63,14 @@ typedef uint8_t byte;
 #define ROTATE_180 2
 #define ROTATE_270 3
 
-#define FILE_BUF_SIZE 256
+enum {
+    BBTT_SUCCESS = 0,
+    BBTT_INVALID_FILE,
+    BBTT_INVALID_PARAMETER,
+    BBTT_GLYPH_NOT_FOUND
+};
+
+#define FILE_BUF_SIZE 512
 typedef void(TTF_DRAWLINE)(int16_t _start_x, int16_t _start_y, int16_t _end_x, int16_t _end_y, uint32_t _colorCode);
 
 typedef struct {
@@ -180,6 +187,14 @@ typedef struct {
     int8_t up;
 } ttWindIntersect_t;
 
+typedef struct {
+    int16_t xAdvance; // full width of the character
+    int16_t xOffset; // offset to start of left edge of bitmap
+    int16_t width; // width of bitmap containing pixels
+    int16_t height; // height of bitmap containing pixels
+    int16_t yOffset; // offset (can be negative) to top of bitmap
+} ttCharBox_t;
+
 // structure holding all of the class member variables
 typedef struct bbtt_tag {
 #ifdef ESP32
@@ -239,7 +254,8 @@ typedef struct bbtt_tag {
     uint32_t colorInside;
     uint8_t kerningOn;
     uint8_t bBigEndian;
-
+    uint8_t textAlign;
+    uint8_t lastError;
 } BBTT;
 
 const int numTablesPos = 4;
@@ -260,7 +276,8 @@ class bb_truetype {
     void setTextBoundary(uint16_t _start_x, uint16_t _end_x, uint16_t _end_y);
     void setTextColor(uint32_t _onLine, uint32_t _inside);
     void setTextRotation(uint16_t _rotation);
-
+    void getCharBox(wchar_t _c, ttCharBox_t *pBox);
+    void setTextAlignment(uint8_t _alignment);
     uint16_t getStringWidth(const wchar_t *szwString);
     uint16_t getStringWidth(const char *szString);
 #ifdef ARDUINO
