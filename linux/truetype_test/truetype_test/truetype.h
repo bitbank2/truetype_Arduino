@@ -284,14 +284,11 @@ class bb_truetype {
     uint16_t getStringWidth(const String _string);
     void textDraw(int16_t _x, int16_t _y, const String _string);
 #endif
-    
     void textDraw(int16_t _x, int16_t _y, const wchar_t _character[]);
     void textDraw(int16_t _x, int16_t _y, const char _character[]);
-
     void end();
 
    private:
-
     BBTT _bbtt;
 #ifdef ARDUINO
     void stringToWchar(String _string, wchar_t _charctor[]);
